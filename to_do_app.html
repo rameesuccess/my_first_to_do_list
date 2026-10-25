@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Smart To-Do List</title>
+
+    <link rel="stylesheet" href="to_do_app.css">
+</head>
+
+<body>
+
+    <main class="todo-container">
+
+        <h1>My Tasks</h1>
+
+        <p>Organize your day, one task at a time.</p>
+
+
+        <!-- ==========================================
+             ADD TASK FORM
+        =========================================== -->
+
+        <form id="task-form">
+
+            <input
+                type="text"
+                id="task-input"
+                placeholder="What do you need to do?"
+            >
+
+            <button type="submit" id="add-task">
+                Add Task
+            </button>
+
+        </form>
+
+
+        <!-- ==========================================
+             TASK LIST
+
+             JavaScript will create the tasks here.
+        =========================================== -->
+
+        <ul id="task-list">
+        </ul>
+
+
+        <!-- ==========================================
+             TASK COUNTER
+        =========================================== -->
+
+        <h2 id="task-count">
+            0 tasks remaining
+        </h2>
+
+
+        <!-- ==========================================
+             FILTER BUTTONS
+        =========================================== -->
+
+        <div class="filters">
+
+            <button
+                type="button"
+                class="filter-button"
+                id="all-filter"
+            >
+                All
+            </button>
+
+            <button
+                type="button"
+                class="filter-button"
+                id="active-filter"
+            >
+                Active
+            </button>
+
+            <button
+                type="button"
+                class="filter-button"
+                id="completed-filter"
+            >
+                Completed
+            </button>
+
+        </div>
+
+
+        <!-- ==========================================
+             CLEAR COMPLETED
+        =========================================== -->
+
+        <button
+            type="button"
+            id="clear-completed"
+        >
+            Clear Completed
+        </button>
+
+    </main>
+
+
+    <script src="to_do_app.js"></script>
+
+</body>
+
+</html>
