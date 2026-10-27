@@ -1,392 +1,441 @@
 
-// 1. SELECT HTML ELEMENTS
+/* ==========================================
+   STEP 1: SELECT HTML ELEMENTS
+========================================== */
 
-const taskForm = document.querySelector("#task-form");
+const loginPage = document.getElementById("login-page");
+const registerPage = document.getElementById("register-page");
+const todoPage = document.getElementById("todo-page");
 
-const taskInput = document.querySelector("#task-input");
+const loginForm = document.getElementById("login-form");
+const loginEmail = document.getElementById("login-email");
+const loginPassword = document.getElementById("login-password");
+const loginMessage = document.getElementById("login-message");
 
-const taskList = document.querySelector("#task-list");
+const registerForm = document.getElementById("register-form");
+const registerName = document.getElementById("register-name");
+const registerEmail = document.getElementById("register-email");
+const registerPassword = document.getElementById("register-password");
+const confirmPassword = document.getElementById("confirm-password");
+const registerMessage = document.getElementById("register-message");
 
-const taskCount = document.querySelector("#task-count");
+const showRegisterButton = document.getElementById("show-register");
+const showLoginButton = document.getElementById("show-login");
+const logoutButton = document.getElementById("logout-button");
+const welcomeMessage = document.getElementById("welcome-message");
 
-const allFilter = document.querySelector("#all-filter");
+const taskForm = document.getElementById("task-form");
+const taskInput = document.getElementById("task-input");
+const taskList = document.getElementById("task-list");
+const taskCount = document.getElementById("task-count");
 
-const activeFilter = document.querySelector("#active-filter");
+const allFilter = document.getElementById("all-filter");
+const activeFilter = document.getElementById("active-filter");
+const completedFilter = document.getElementById("completed-filter");
+const clearCompletedButton = document.getElementById("clear-completed");
 
-const completedFilter = document.querySelector("#completed-filter");
 
-const clearCompleted = document.querySelector("#clear-completed");
+/* ==========================================
+   STEP 2: STORAGE KEYS
+========================================== */
 
+const USERS_KEY = "smartTodoUsers";
+const SESSION_KEY = "smartTodoCurrentUser";
 
-// 2. APPLICATION STATE
-
-// Stores all tasks
+let currentUser = null;
 let tasks = [];
-
-// Stores the currently selected filter
 let currentFilter = "all";
 
 
-// 3. ADD TASK
+/* ==========================================
+   STEP 3: SAVE AND LOAD USERS
+========================================== */
 
-taskForm.addEventListener("submit", function (event) {
+function getUsers() {
+    try {
+        const savedUsers = localStorage.getItem(USERS_KEY);
+        const users = savedUsers ? JSON.parse(savedUsers) : [];
 
-    // Stop the form from refreshing the page
+        return Array.isArray(users) ? users : [];
+    } catch (error) {
+        console.error("Could not load accounts:", error);
+        return [];
+    }
+}
+
+function saveUsers(users) {
+    try {
+        localStorage.setItem(USERS_KEY, JSON.stringify(users));
+        return true;
+    } catch (error) {
+        alert("Could not save your account in this browser.");
+        return false;
+    }
+}
+
+
+/* ==========================================
+   STEP 4: SHOW THE CORRECT PAGE
+========================================== */
+
+function showPage(page) {
+    loginPage.hidden = page !== "login";
+    registerPage.hidden = page !== "register";
+    todoPage.hidden = page !== "todo";
+}
+
+showRegisterButton.addEventListener("click", function () {
+    loginMessage.textContent = "";
+    registerMessage.textContent = "";
+    registerForm.reset();
+    showPage("register");
+});
+
+showLoginButton.addEventListener("click", function () {
+    loginMessage.textContent = "";
+    registerMessage.textContent = "";
+    loginForm.reset();
+    showPage("login");
+});
+
+
+/* ==========================================
+   STEP 5: CREATE A NEW ACCOUNT
+========================================== */
+
+registerForm.addEventListener("submit", function (event) {
     event.preventDefault();
 
+    const name = registerName.value.trim();
+    const email = registerEmail.value.trim().toLowerCase();
+    const password = registerPassword.value;
+    const confirmation = confirmPassword.value;
 
-    // Get the user's input
-    const taskText = taskInput.value.trim();
-
-
-    // Don't allow empty tasks
-    if (taskText === "") {
+    if (password.length < 6) {
+        registerMessage.textContent =
+            "Your password must have at least 6 characters.";
         return;
     }
 
+    if (password !== confirmation) {
+        registerMessage.textContent =
+            "The passwords do not match.";
+        return;
+    }
 
-    // Create a task object
-    const task = {
+    const users = getUsers();
 
-        text: taskText,
+    const existingUser = users.find(function (user) {
+        return user.email === email;
+    });
 
-        completed: false
+    if (existingUser) {
+        registerMessage.textContent =
+            "An account with this email already exists. Please log in.";
+        return;
+    }
 
+    // DEMO ONLY: Never store real passwords this way.
+    const newUser = {
+        id: Date.now().toString() + Math.random().toString(16).slice(2),
+        name: name,
+        email: email,
+        password: password
     };
 
+    users.push(newUser);
 
-    // Add task to our data
-    tasks.push(task);
-
-
-    // Save tasks to localStorage
-    saveTasks();
-
-
-    // Display tasks on the page
-    renderTasks();
-
-
-    // Clear input
-    taskInput.value = "";
-
-});
-
-
-// 4. DELETE TASK
-
-taskList.addEventListener("click", function (event) {
-
-    // Check if the clicked element is a delete button
-    if (event.target.classList.contains("delete-button")) {
-
-        // Get the <li>
-        const taskElement = event.target.parentElement;
-
-
-        // Find the position of this task
-        const taskIndex = Array.from(taskList.children)
-            .indexOf(taskElement);
-
-
-        // Remove task from JavaScript array
-        tasks.splice(taskIndex, 1);
-
-
-        // Save updated tasks
-        saveTasks();
-
-
-        // Rebuild the task list
-        renderTasks();
-
+    if (!saveUsers(users)) {
+        return;
     }
 
+    registerForm.reset();
+    loginEmail.value = email;
+    loginMessage.textContent =
+        "Account created successfully. Please log in.";
+
+    showPage("login");
 });
 
 
-// 5. COMPLETE / UNCOMPLETE TASK
+/* ==========================================
+   STEP 6: LOG IN TO AN EXISTING ACCOUNT
+========================================== */
 
-taskList.addEventListener("change", function (event) {
+loginForm.addEventListener("submit", function (event) {
+    event.preventDefault();
 
-    // Check if the changed element is a checkbox
-    if (event.target.type === "checkbox") {
+    const email = loginEmail.value.trim().toLowerCase();
+    const password = loginPassword.value;
 
-        // Get the <li>
-        const taskElement = event.target.parentElement;
+    const users = getUsers();
 
+    const user = users.find(function (account) {
+        return account.email === email &&
+               account.password === password;
+    });
 
-        // Find which task this is
-        const taskIndex = Array.from(taskList.children)
-            .indexOf(taskElement);
-
-
-        // Update completed status
-        tasks[taskIndex].completed = event.target.checked;
-
-
-        // Save updated data
-        saveTasks();
-
-
-        // Rebuild task list
-        renderTasks();
-
+    if (!user) {
+        loginMessage.textContent =
+            "Incorrect email or password. Please try again.";
+        return;
     }
 
+    currentUser = user;
+
+    // Keep the signed-in state for this browser tab session.
+    sessionStorage.setItem(SESSION_KEY, user.id);
+
+    loginForm.reset();
+    loginMessage.textContent = "";
+
+    openUserTasks();
 });
 
 
-// 6. UPDATE TASK COUNT
+/* ==========================================
+   STEP 7: LOAD TASKS FOR THE CURRENT USER
+========================================== */
 
-function updateTaskCount() {
+function getTaskStorageKey() {
+    return "smartTodoTasks_" + currentUser.id;
+}
 
-    // Start counting from zero
-    let remaining = 0;
+function loadUserTasks() {
+    try {
+        const savedTasks = localStorage.getItem(getTaskStorageKey());
+        const parsedTasks = savedTasks ? JSON.parse(savedTasks) : [];
 
-
-    // Look at every task
-    tasks.forEach(function (task) {
-
-        // Count only active tasks
-        if (!task.completed) {
-
-            remaining++;
-
-        }
-
-    });
-
-
-    // Display correct grammar
-    if (remaining === 1) {
-
-        taskCount.textContent = "1 task remaining";
-
-    } else {
-
-        taskCount.textContent = `${remaining} tasks remaining`;
-
+        tasks = Array.isArray(parsedTasks) ? parsedTasks : [];
+    } catch (error) {
+        console.error("Could not load tasks:", error);
+        tasks = [];
     }
-
 }
-
-
-// 7. FILTER TASKS
-
-function filterTasks(filter) {
-
-    const taskElements = taskList.querySelectorAll("li");
-
-
-    taskElements.forEach(function (taskElement, index) {
-
-        const task = tasks[index];
-
-
-        // Show every task
-        if (filter === "all") {
-
-            taskElement.style.display = "";
-
-        }
-
-
-        // Show only active tasks
-        else if (filter === "active") {
-
-            if (task.completed) {
-
-                taskElement.style.display = "none";
-
-            } else {
-
-                taskElement.style.display = "";
-
-            }
-
-        }
-
-
-        // Show only completed tasks
-        else if (filter === "completed") {
-
-            if (task.completed) {
-
-                taskElement.style.display = "";
-
-            } else {
-
-                taskElement.style.display = "none";
-
-            }
-
-        }
-
-    });
-
-}
-
-
-// 8. RENDER TASKS
-
-// This function takes the tasks array
-// and creates the HTML for the page.
-
-function renderTasks() {
-
-    // Clear the current HTML
-    taskList.innerHTML = "";
-
-
-    // Create HTML for every task
-    tasks.forEach(function (task) {
-
-        // Create <li>
-        const newTask = document.createElement("li");
-
-
-        // Create checkbox
-        const checkbox = document.createElement("input");
-
-        checkbox.type = "checkbox";
-
-        checkbox.checked = task.completed;
-
-
-        // Create label
-        const label = document.createElement("label");
-
-        label.textContent = task.text;
-
-
-        // If task is completed,
-        // add the completed CSS class
-        if (task.completed) {
-
-            label.classList.add("completed");
-
-        }
-
-
-        // Create delete button
-        const deleteButton = document.createElement("button");
-
-        deleteButton.type = "button";
-
-        deleteButton.textContent = "Delete";
-
-        deleteButton.classList.add("delete-button");
-
-
-        // Put elements inside <li>
-        newTask.append(checkbox);
-
-        newTask.append(label);
-
-        newTask.append(deleteButton);
-
-
-        // Add <li> to task list
-        taskList.append(newTask);
-
-    });
-
-
-    // Update counter
-    updateTaskCount();
-
-
-    // Apply current filter
-    filterTasks(currentFilter);
-
-}
-
-
-// 9. CLEAR COMPLETED TASKS
-
-clearCompleted.addEventListener("click", function () {
-
-    // Keep only active tasks
-    tasks = tasks.filter(function (task) {
-
-        return !task.completed;
-
-    });
-
-
-    // Save updated array
-    saveTasks();
-
-
-    // Rebuild the page
-    renderTasks();
-
-});
-
-
-// 10. FILTER BUTTONS
-
-allFilter.addEventListener("click", function () {
-
-    currentFilter = "all";
-
-    filterTasks(currentFilter);
-
-});
-
-
-activeFilter.addEventListener("click", function () {
-
-    currentFilter = "active";
-
-    filterTasks(currentFilter);
-
-});
-
-
-completedFilter.addEventListener("click", function () {
-
-    currentFilter = "completed";
-
-    filterTasks(currentFilter);
-
-});
-
-
-// 11. SAVE TASKS
 
 function saveTasks() {
+    try {
+        localStorage.setItem(
+            getTaskStorageKey(),
+            JSON.stringify(tasks)
+        );
+    } catch (error) {
+        alert("Could not save tasks in this browser.");
+    }
+}
 
-    localStorage.setItem(
-        "tasks",
-        JSON.stringify(tasks)
-    );
+function openUserTasks() {
+    loadUserTasks();
 
+    currentFilter = "all";
+    welcomeMessage.textContent =
+        "Welcome, " + currentUser.name + "! Organize your day.";
+
+    showPage("todo");
+    renderTasks();
 }
 
 
-// 12. LOAD TASKS
+/* ==========================================
+   STEP 8: LOG OUT
+========================================== */
 
-function loadTasks() {
+logoutButton.addEventListener("click", function () {
+    sessionStorage.removeItem(SESSION_KEY);
 
-    // Get saved data
-    const savedTasks = localStorage.getItem("tasks");
+    currentUser = null;
+    tasks = [];
+
+    loginForm.reset();
+    loginMessage.textContent = "";
+
+    showPage("login");
+});
 
 
-    // If saved tasks exist,
-    // convert them back into JavaScript
-    if (savedTasks) {
+/* ==========================================
+   STEP 9: ADD A TASK
+========================================== */
 
-        tasks = JSON.parse(savedTasks);
+taskForm.addEventListener("submit", function (event) {
+    event.preventDefault();
 
+    if (!currentUser) {
+        return;
     }
 
+    const text = taskInput.value.trim();
+
+    if (text === "") {
+        return;
+    }
+
+    tasks.push({
+        id: Date.now().toString() +
+            Math.random().toString(16).slice(2),
+        text: text,
+        completed: false
+    });
+
+    saveTasks();
+    renderTasks();
+
+    taskInput.value = "";
+    taskInput.focus();
+});
+
+
+/* ==========================================
+   STEP 10: DISPLAY TASKS
+========================================== */
+
+function renderTasks() {
+    taskList.replaceChildren();
+
+    let visibleTasks = tasks;
+
+    if (currentFilter === "active") {
+        visibleTasks = tasks.filter(function (task) {
+            return !task.completed;
+        });
+    } else if (currentFilter === "completed") {
+        visibleTasks = tasks.filter(function (task) {
+            return task.completed;
+        });
+    }
+
+    visibleTasks.forEach(function (task) {
+        const item = document.createElement("li");
+        item.className = "task-item";
+
+        if (task.completed) {
+            item.classList.add("completed");
+        }
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = task.completed;
+        checkbox.setAttribute("aria-label", "Mark task completed");
+
+        checkbox.addEventListener("change", function () {
+            task.completed = checkbox.checked;
+            saveTasks();
+            renderTasks();
+        });
+
+        const text = document.createElement("span");
+        text.className = "task-text";
+        text.textContent = task.text;
+
+        const deleteButton = document.createElement("button");
+        deleteButton.type = "button";
+        deleteButton.className = "delete-button";
+        deleteButton.textContent = "Delete";
+
+        deleteButton.addEventListener("click", function () {
+            tasks = tasks.filter(function (savedTask) {
+                return savedTask.id !== task.id;
+            });
+
+            saveTasks();
+            renderTasks();
+        });
+
+        item.append(checkbox, text, deleteButton);
+        taskList.appendChild(item);
+    });
+
+    updateTaskCount();
+    updateFilterButtons();
 }
 
 
-// 13. START THE APPLICATION
+/* ==========================================
+   STEP 11: COUNT REMAINING TASKS
+========================================== */
 
-loadTasks();
+function updateTaskCount() {
+    const remaining = tasks.filter(function (task) {
+        return !task.completed;
+    }).length;
 
-renderTasks();
+    taskCount.textContent = remaining +
+        (remaining === 1 ? " task remaining" : " tasks remaining");
+}
+
+
+/* ==========================================
+   STEP 12: FILTER TASKS
+========================================== */
+
+function setFilter(filter) {
+    currentFilter = filter;
+    renderTasks();
+}
+
+allFilter.addEventListener("click", function () {
+    setFilter("all");
+});
+
+activeFilter.addEventListener("click", function () {
+    setFilter("active");
+});
+
+completedFilter.addEventListener("click", function () {
+    setFilter("completed");
+});
+
+function updateFilterButtons() {
+    [
+        { button: allFilter, name: "all" },
+        { button: activeFilter, name: "active" },
+        { button: completedFilter, name: "completed" }
+    ].forEach(function (filter) {
+        const selected = currentFilter === filter.name;
+
+        filter.button.classList.toggle("active-filter", selected);
+        filter.button.setAttribute("aria-pressed", String(selected));
+    });
+}
+
+
+/* ==========================================
+   STEP 13: CLEAR COMPLETED TASKS
+========================================== */
+
+clearCompletedButton.addEventListener("click", function () {
+    tasks = tasks.filter(function (task) {
+        return !task.completed;
+    });
+
+    saveTasks();
+    renderTasks();
+});
+
+
+/* ==========================================
+   STEP 14: RESTORE THE CURRENT SESSION
+========================================== */
+
+function startApp() {
+    const userId = sessionStorage.getItem(SESSION_KEY);
+
+    if (userId) {
+        const users = getUsers();
+
+        currentUser = users.find(function (user) {
+            return user.id === userId;
+        }) || null;
+
+        if (currentUser) {
+            openUserTasks();
+            return;
+        }
+
+        sessionStorage.removeItem(SESSION_KEY);
+    }
+
+    showPage("login");
+}
+
+startApp();
