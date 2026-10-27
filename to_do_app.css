@@ -1,260 +1,328 @@
 
+/* ==========================================
+   STEP 1: GENERAL PAGE STYLES
+========================================== */
 
-body {
-    font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
-
-    margin: 0;
-    background: #e8f5e9;
-
-    display: flex;
-    justify-content: center;
-
-    padding: 40px 20px;
+* {
+    box-sizing: border-box;
 }
 
+body {
+    margin: 0;
+    padding: 20px;
+    min-height: 100vh;
+    font-family: Arial, sans-serif;
+    background-color: #f4f7f6;
+    color: #222;
+    line-height: 1.5;
+}
+
+button,
+input {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+
+/* ==========================================
+   STEP 2: MAIN CONTAINERS
+========================================== */
 
 .todo-container {
     width: 100%;
-    max-width: 550px;
-
-    background: white;
-
-    padding: 30px;
-
-    border-radius: 15px;
-
-    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+    max-width: 500px;
+    margin: 40px auto;
+    padding: 25px;
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
 }
 
-
-
-
-h1 {
+.todo-container h1 {
     margin-top: 0;
-    margin-bottom: 5px;
+    margin-bottom: 8px;
+    text-align: center;
+}
 
-    font-size: 32px;
+.todo-container > p {
+    text-align: center;
+    color: #666;
 }
 
 
+/* ==========================================
+   STEP 3: LOGIN AND REGISTER PAGES
+========================================== */
 
-p {
-    margin-top: 0;
-    margin-bottom: 25px;
+.login-container {
+    max-width: 400px;
+    margin: 40px auto;
+}
 
-    color: #777;
+.login-container form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.login-container label {
+    text-align: left;
+    font-weight: 600;
+}
+
+.login-container input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 16px;
+}
+
+.login-container input:focus {
+    outline: 2px solid #4caf50;
+    outline-offset: 2px;
+}
+
+#login-page form button,
+#register-page form button {
+    padding: 12px;
+    background-color: #4caf50;
+    color: white;
+    border: none;
+    border-radius: 6px;
+}
+
+#login-page form button:hover,
+#register-page form button:hover {
+    background-color: #388e3c;
+}
+
+#show-register,
+#show-login {
+    padding: 5px;
+    color: #388e3c;
+    background: transparent;
+    border: none;
+    text-decoration: underline;
+}
+
+#login-message,
+#register-message {
+    color: #b00020;
+    font-size: 14px;
+}
+
+#login-message:empty,
+#register-message:empty {
+    display: none;
 }
 
 
+/* ==========================================
+   STEP 4: LOGOUT BUTTON
+========================================== */
+
+#logout-button {
+    display: block;
+    margin: 0 auto 20px;
+    padding: 10px 16px;
+    color: #333333;
+    background-color: #60b4f4;
+    border: none;
+    border-radius: 6px;
+}
+
+#logout-button:hover {
+    background-color: #ddd;
+}
+
+
+/* ==========================================
+   STEP 5: ADD TASK FORM
+========================================== */
 
 #task-form {
     display: flex;
     gap: 10px;
-
-    margin-bottom: 25px;
-}
-
-
-
-
-#task-input {
-    flex: 1;
-
-    padding: 12px;
-
-    border: 1px solid #ccc;
-    border-radius: 8px;
-
-    font-size: 16px;
-}
-
-
-
-
-#task-input:focus {
-    outline: none;
-
-    border-color: #4caf50;
-
-    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.15);
-}
-
-
-
-#add-task {
-    padding: 12px 18px;
-
-    border: none;
-    border-radius: 8px;
-
-    background: #4caf50;
-    color: white;
-
-    font-weight: bold;
-
-    cursor: pointer;
-}
-
-#add-task:hover {
-    background: #388e3c;
-}
-
-
-
-
-#task-list {
-    list-style: none;
-
-    padding: 0;
-    margin: 0;
-}
-
-
-
-
-#task-list li {
-    display: flex;
-
-    align-items: center;
-
-    gap: 10px;
-
-    padding: 14px;
-
-    margin-bottom: 10px;
-
-    background: #f7f7f7;
-
-    border-radius: 8px;
-
-    border: 1px solid #eee;
-}
-
-
-
-
-#task-list label {
-    flex: 1;
-
-    cursor: pointer;
-}
-
-
-
-.delete-button {
-    border: none;
-
-    background: transparent;
-
-    color: #e53935;
-
-    cursor: pointer;
-
-    font-weight: bold;
-}
-
-.delete-button:hover {
-    text-decoration: underline;
-}
-
-
-
-
-.completed {
-    
-
-    color: #999;
-}
-
-
-
-
-#task-count {
-    font-size: 15px;
-
-    font-weight: normal;
-
-    color: #777;
-
     margin: 20px 0;
 }
 
+#task-input {
+    flex: 1;
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+}
 
+#task-input:focus {
+    outline: 2px solid #4caf50;
+    outline-offset: 2px;
+}
 
-.filters {
-    display: flex;
+#add-task {
+    padding: 12px 16px;
+    color: white;
+    background-color: #4caf50;
+    border: none;
+    border-radius: 6px;
+}
 
-    gap: 8px;
-
-    margin-bottom: 20px;
+#add-task:hover {
+    background-color: #388e3c;
 }
 
 
-.filter-button {
-    padding: 8px 14px;
+/* ==========================================
+   STEP 6: TASK LIST
+========================================== */
 
-    border: 1px solid #ccc;
+#task-list {
+    list-style: none;
+    margin: 20px 0;
+    padding: 0;
+}
 
-    border-radius: 20px;
+.task-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding: 12px;
+    background-color: #fafafa;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+}
 
-    background: white;
-
+.task-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
     cursor: pointer;
 }
 
+.task-text {
+    flex: 1;
+    overflow-wrap: anywhere;
+}
 
-.filter-button:hover {
-    background: #e8f5e9;
+.task-item.completed .task-text {
+    color: #888;
+    text-decoration: line-through;
 }
 
 
+/* ==========================================
+   STEP 7: DELETE BUTTON
+========================================== */
 
-
-.filter-button:first-child {
-    background: #4caf50;
-
+.delete-button {
+    padding: 7px 10px;
     color: white;
+    background-color: #e53935;
+    border: none;
+    border-radius: 5px;
+}
 
+.delete-button:hover {
+    background-color: #c62828;
+}
+
+
+/* ==========================================
+   STEP 8: TASK COUNTER
+========================================== */
+
+#task-count {
+    text-align: center;
+    font-size: 18px;
+    color: #444;
+}
+
+
+/* ==========================================
+   STEP 9: FILTER BUTTONS
+========================================== */
+
+.filters {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin: 20px 0;
+}
+
+.filter-button {
+    padding: 9px 14px;
+    color: #333;
+    background-color: #eee;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+.filter-button:hover {
+    background-color: #ddd;
+}
+
+.filter-button.active-filter {
+    color: white;
+    background-color: #4caf50;
     border-color: #4caf50;
 }
 
 
-
+/* ==========================================
+   STEP 10: CLEAR COMPLETED BUTTON
+========================================== */
 
 #clear-completed {
+    display: block;
+    margin: 0 auto;
+    padding: 10px 14px;
+    color: #333;
+    background-color: #eee;
     border: none;
-
-    background: transparent;
-
-    color: #777;
-
-    cursor: pointer;
-
-    padding: 5px;
+    border-radius: 5px;
 }
 
 #clear-completed:hover {
-    color: #e53935;
+    background-color: #ddd;
 }
 
 
+/* ==========================================
+   STEP 11: MOBILE RESPONSIVE DESIGN
+========================================== */
 
-@media (max-width: 600px) {
-
+@media (max-width: 480px) {
     body {
-        padding: 20px 10px;
+        padding: 10px;
     }
 
-    .todo-container {
-        padding: 20px;
+    .todo-container,
+    .login-container {
+        margin: 15px auto;
+        padding: 18px;
     }
 
     #task-form {
-        flex-direction: column;
+        flex-wrap: wrap;
     }
 
     #add-task {
-        width: 100%;
+        flex: 1;
     }
 
+    .task-item {
+        gap: 7px;
+        padding: 9px;
+    }
 }
