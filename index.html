@@ -1,27 +1,130 @@
+
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>Smart To-Do List</title>
-
     <link rel="stylesheet" href="to_do_app.css">
 </head>
 
 <body>
 
-    <main class="todo-container">
+    <!-- ==========================================
+         LOGIN PAGE
+    =========================================== -->
+
+    <main id="login-page" class="todo-container login-container">
+
+        <h1>Smart To-Do List</h1>
+        <p>Welcome back! Log in to manage your tasks.</p>
+
+        <form id="login-form">
+
+            <label for="login-email">Email Address</label>
+            <input
+                type="email"
+                id="login-email"
+                placeholder="Enter your email"
+                autocomplete="email"
+                required
+            >
+
+            <label for="login-password">Password</label>
+            <input
+                type="password"
+                id="login-password"
+                placeholder="Enter your password"
+                autocomplete="current-password"
+                required
+            >
+
+            <button type="submit">Login</button>
+
+            <p id="login-message" role="status" aria-live="polite"></p>
+
+        </form>
+
+        <p>Don't have an account?
+            <button type="button" id="show-register">Create Account</button>
+        </p>
+
+    </main>
+
+
+    <!-- ==========================================
+         REGISTER PAGE
+    =========================================== -->
+
+    <main id="register-page" class="todo-container login-container" hidden>
+
+        <h1>Create Account</h1>
+        <p>Register to start organizing your day.</p>
+
+        <form id="register-form">
+
+            <label for="register-name">Full Name</label>
+            <input
+                type="text"
+                id="register-name"
+                placeholder="Enter your name"
+                autocomplete="name"
+                required
+            >
+
+            <label for="register-email">Email Address</label>
+            <input
+                type="email"
+                id="register-email"
+                placeholder="Enter your email"
+                autocomplete="email"
+                required
+            >
+
+            <label for="register-password">Password</label>
+            <input
+                type="password"
+                id="register-password"
+                placeholder="Create a password (at least 6 characters)"
+                minlength="6"
+                autocomplete="new-password"
+                required
+            >
+
+            <label for="confirm-password">Confirm Password</label>
+            <input
+                type="password"
+                id="confirm-password"
+                placeholder="Enter your password again"
+                minlength="6"
+                autocomplete="new-password"
+                required
+            >
+
+            <button type="submit">Create Account</button>
+
+            <p id="register-message" role="status" aria-live="polite"></p>
+
+        </form>
+
+        <p>Already have an account?
+            <button type="button" id="show-login">Login</button>
+        </p>
+
+    </main>
+
+
+    <!-- ==========================================
+         TO-DO APP PAGE
+    =========================================== -->
+
+    <main id="todo-page" class="todo-container" hidden>
 
         <h1>My Tasks</h1>
+        <p id="welcome-message">Organize your day, one task at a time.</p>
 
-        <p>Organize your day, one task at a time.</p>
-
-
-        <!-- ==========================================
-             ADD TASK FORM
-        =========================================== -->
+        <button type="button" id="logout-button">Logout</button>
 
         <form id="task-form">
 
@@ -29,83 +132,36 @@
                 type="text"
                 id="task-input"
                 placeholder="What do you need to do?"
+                aria-label="New task"
+                required
             >
 
-            <button type="submit" id="add-task">
-                Add Task
-            </button>
+            <button type="submit" id="add-task">Add Task</button>
 
         </form>
 
+        <ul id="task-list"></ul>
 
-        <!-- ==========================================
-             TASK LIST
-
-             JavaScript will create the tasks here.
-        =========================================== -->
-
-        <ul id="task-list">
-        </ul>
-
-
-        <!-- ==========================================
-             TASK COUNTER
-        =========================================== -->
-
-        <h2 id="task-count">
-            0 tasks remaining
-        </h2>
-
-
-        <!-- ==========================================
-             FILTER BUTTONS
-        =========================================== -->
+        <h2 id="task-count">0 tasks remaining</h2>
 
         <div class="filters">
 
-            <button
-                type="button"
-                class="filter-button"
-                id="all-filter"
-            >
-                All
-            </button>
+            <button type="button" class="filter-button active-filter"
+                id="all-filter" aria-pressed="true">All</button>
 
-            <button
-                type="button"
-                class="filter-button"
-                id="active-filter"
-            >
-                Active
-            </button>
+            <button type="button" class="filter-button"
+                id="active-filter" aria-pressed="false">Active</button>
 
-            <button
-                type="button"
-                class="filter-button"
-                id="completed-filter"
-            >
-                Completed
-            </button>
+            <button type="button" class="filter-button"
+                id="completed-filter" aria-pressed="false">Completed</button>
 
         </div>
 
-
-        <!-- ==========================================
-             CLEAR COMPLETED
-        =========================================== -->
-
-        <button
-            type="button"
-            id="clear-completed"
-        >
-            Clear Completed
-        </button>
+        <button type="button" id="clear-completed">Clear Completed</button>
 
     </main>
-
 
     <script src="to_do_app.js"></script>
 
 </body>
-
 </html>
