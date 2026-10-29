@@ -1,82 +1,135 @@
 
-/* ==========================================
-   STEP 1: SELECT HTML ELEMENTS
-========================================== */
+"use strict";
+
+// ==========================================
+// STEP 1: GET HTML ELEMENTS
+// ==========================================
 
 const loginPage = document.getElementById("login-page");
 const registerPage = document.getElementById("register-page");
 const todoPage = document.getElementById("todo-page");
 
 const loginForm = document.getElementById("login-form");
+const registerForm = document.getElementById("register-form");
+const taskForm = document.getElementById("task-form");
+
 const loginEmail = document.getElementById("login-email");
 const loginPassword = document.getElementById("login-password");
-const loginMessage = document.getElementById("login-message");
 
-const registerForm = document.getElementById("register-form");
 const registerName = document.getElementById("register-name");
 const registerEmail = document.getElementById("register-email");
 const registerPassword = document.getElementById("register-password");
 const confirmPassword = document.getElementById("confirm-password");
-const registerMessage = document.getElementById("register-message");
 
-const showRegisterButton = document.getElementById("show-register");
-const showLoginButton = document.getElementById("show-login");
-const logoutButton = document.getElementById("logout-button");
-const welcomeMessage = document.getElementById("welcome-message");
-
-const taskForm = document.getElementById("task-form");
 const taskInput = document.getElementById("task-input");
+const taskPriority = document.getElementById("task-priority");
+const taskDueDate = document.getElementById("task-due-date");
+const taskDueTime = document.getElementById("task-due-time");
+const taskReminder = document.getElementById("task-reminder");
+
 const taskList = document.getElementById("task-list");
 const taskCount = document.getElementById("task-count");
+const taskMessage = document.getElementById("task-message");
+const emptyMessage = document.getElementById("empty-message");
+
+const totalTasksElement = document.getElementById("total-tasks");
+const completedTasksElement = document.getElementById("completed-tasks");
+const pendingTasksElement = document.getElementById("pending-tasks");
+const progressPercentageElement =
+    document.getElementById("progress-percentage");
+
+const progressFill = document.getElementById("progress-fill");
+const progressLabel = document.getElementById("progress-label");
+const progressBar = document.getElementById("progress-bar");
+
+const completionChart = document.getElementById("completion-chart");
+const priorityChart = document.getElementById("priority-chart");
+
+const completionChartSummary =
+    document.getElementById("completion-chart-summary");
+
+const priorityChartSummary =
+    document.getElementById("priority-chart-summary");
+
+const addTaskButton = document.getElementById("add-task");
+const cancelEditButton = document.getElementById("cancel-edit");
 
 const allFilter = document.getElementById("all-filter");
 const activeFilter = document.getElementById("active-filter");
 const completedFilter = document.getElementById("completed-filter");
-const clearCompletedButton = document.getElementById("clear-completed");
 
-
-/* ==========================================
-   STEP 2: STORAGE KEYS
-========================================== */
+// ==========================================
+// STEP 2: STORAGE AND APP VARIABLES
+// ==========================================
 
 const USERS_KEY = "smartTodoUsers";
 const SESSION_KEY = "smartTodoCurrentUser";
+const LEGACY_TASKS_KEY = "tasks";
 
 let currentUser = null;
 let tasks = [];
 let currentFilter = "all";
+let editingTaskId = null;
 
+// Track reminders already shown during this session.
+const notifiedReminders = new Set();
 
-/* ==========================================
-   STEP 3: SAVE AND LOAD USERS
-========================================== */
+// ==========================================
+// STEP 3: HELPER FUNCTIONS
+// ==========================================
 
-function getUsers() {
+// Generate a unique ID for each task.
+function createId() {
+    if (window.crypto && typeof window.crypto.randomUUID === "function") {
+        return window.crypto.randomUUID();
+    }
+
+    return Date.now().toString(36) +
+        Math.random().toString(36).slice(2);
+}
+
+// Read JSON safely from localStorage.
+function readStorage(key, fallbackValue) {
     try {
-        const savedUsers = localStorage.getItem(USERS_KEY);
-        const users = savedUsers ? JSON.parse(savedUsers) : [];
+        const value = localStorage.getItem(key);
 
-        return Array.isArray(users) ? users : [];
+        return value === null ? fallbackValue : JSON.parse(value);
     } catch (error) {
-        console.error("Could not load accounts:", error);
-        return [];
+        console.error("Could not read saved data:", error);
+        return fallbackValue;
     }
 }
 
-function saveUsers(users) {
+// Save data in localStorage.
+function writeStorage(key, value) {
     try {
-        localStorage.setItem(USERS_KEY, JSON.stringify(users));
+        localStorage.setItem(key, JSON.stringify(value));
         return true;
     } catch (error) {
-        alert("Could not save your account in this browser.");
+        console.error("Could not save data:", error);
+        alert("Your data could not be saved. Check browser storage.");
         return false;
     }
 }
 
+// Use a separate task list for each account.
+function getTasksKey() {
+    return "smartTodoTasks_" + encodeURIComponent(currentUser.email);
+}
 
-/* ==========================================
-   STEP 4: SHOW THE CORRECT PAGE
-========================================== */
+// Display a message safely.
+function showMessage(element, message, type = "") {
+    element.textContent = message;
+    element.className = "message";
+
+    if (type) {
+        element.classList.add(type);
+    }
+}
+
+// ==========================================
+// STEP 4: ACCOUNT AND PAGE NAVIGATION
+// ==========================================
 
 function showPage(page) {
     loginPage.hidden = page !== "login";
@@ -84,358 +137,1042 @@ function showPage(page) {
     todoPage.hidden = page !== "todo";
 }
 
-showRegisterButton.addEventListener("click", function () {
-    loginMessage.textContent = "";
-    registerMessage.textContent = "";
-    registerForm.reset();
+document.getElementById("show-register").addEventListener("click", () => {
+    showMessage(document.getElementById("login-message"), "");
+    showMessage(document.getElementById("register-message"), "");
     showPage("register");
 });
 
-showLoginButton.addEventListener("click", function () {
-    loginMessage.textContent = "";
-    registerMessage.textContent = "";
-    loginForm.reset();
+document.getElementById("show-login").addEventListener("click", () => {
+    showMessage(document.getElementById("login-message"), "");
+    showMessage(document.getElementById("register-message"), "");
     showPage("login");
 });
 
+// ==========================================
+// STEP 5: REGISTER A NEW ACCOUNT
+// ==========================================
 
-/* ==========================================
-   STEP 5: CREATE A NEW ACCOUNT
-========================================== */
-
-registerForm.addEventListener("submit", function (event) {
+registerForm.addEventListener("submit", (event) => {
     event.preventDefault();
 
     const name = registerName.value.trim();
     const email = registerEmail.value.trim().toLowerCase();
     const password = registerPassword.value;
-    const confirmation = confirmPassword.value;
+    const confirm = confirmPassword.value;
 
     if (password.length < 6) {
-        registerMessage.textContent =
-            "Your password must have at least 6 characters.";
+        showMessage(
+            document.getElementById("register-message"),
+            "Password must contain at least 6 characters.",
+            "error"
+        );
         return;
     }
 
-    if (password !== confirmation) {
-        registerMessage.textContent =
-            "The passwords do not match.";
+    if (password !== confirm) {
+        showMessage(
+            document.getElementById("register-message"),
+            "Passwords do not match.",
+            "error"
+        );
         return;
     }
 
-    const users = getUsers();
+    const users = readStorage(USERS_KEY, []);
 
-    const existingUser = users.find(function (user) {
-        return user.email === email;
-    });
-
-    if (existingUser) {
-        registerMessage.textContent =
-            "An account with this email already exists. Please log in.";
+    if (!Array.isArray(users)) {
+        showMessage(
+            document.getElementById("register-message"),
+            "Account storage is invalid. Please check your browser data.",
+            "error"
+        );
         return;
     }
 
-    // DEMO ONLY: Never store real passwords this way.
-    const newUser = {
-        id: Date.now().toString() + Math.random().toString(16).slice(2),
+    const accountExists = users.some((user) => user.email === email);
+
+    if (accountExists) {
+        showMessage(
+            document.getElementById("register-message"),
+            "This email already has an account. Please log in.",
+            "error"
+        );
+        return;
+    }
+
+    // DEMO ONLY: passwords are stored as plain text.
+    // Never use this authentication approach for a real website.
+    users.push({
         name: name,
         email: email,
         password: password
-    };
+    });
 
-    users.push(newUser);
-
-    if (!saveUsers(users)) {
+    if (!writeStorage(USERS_KEY, users)) {
         return;
     }
 
+    showMessage(
+        document.getElementById("register-message"),
+        "Account created! You can now log in.",
+        "success"
+    );
+
     registerForm.reset();
     loginEmail.value = email;
-    loginMessage.textContent =
-        "Account created successfully. Please log in.";
-
     showPage("login");
 });
 
+// ==========================================
+// STEP 6: LOG IN
+// ==========================================
 
-/* ==========================================
-   STEP 6: LOG IN TO AN EXISTING ACCOUNT
-========================================== */
-
-loginForm.addEventListener("submit", function (event) {
+loginForm.addEventListener("submit", (event) => {
     event.preventDefault();
 
     const email = loginEmail.value.trim().toLowerCase();
     const password = loginPassword.value;
 
-    const users = getUsers();
+    const users = readStorage(USERS_KEY, []);
 
-    const user = users.find(function (account) {
-        return account.email === email &&
-               account.password === password;
-    });
+    const user = Array.isArray(users)
+        ? users.find((item) =>
+            item.email === email && item.password === password
+        )
+        : null;
 
     if (!user) {
-        loginMessage.textContent =
-            "Incorrect email or password. Please try again.";
+        showMessage(
+            document.getElementById("login-message"),
+            "Incorrect email or password.",
+            "error"
+        );
         return;
     }
 
-    currentUser = user;
+    if (!writeStorage(SESSION_KEY, { email: user.email })) {
+        return;
+    }
 
-    // Keep the signed-in state for this browser tab session.
-    sessionStorage.setItem(SESSION_KEY, user.id);
-
-    loginForm.reset();
-    loginMessage.textContent = "";
-
-    openUserTasks();
+    startApp(user);
 });
 
+// ==========================================
+// STEP 7: START THE APP
+// ==========================================
 
-/* ==========================================
-   STEP 7: LOAD TASKS FOR THE CURRENT USER
-========================================== */
+function startApp(user) {
+    currentUser = user;
 
-function getTaskStorageKey() {
-    return "smartTodoTasks_" + currentUser.id;
+    document.getElementById("welcome-message").textContent =
+        "Welcome, " + user.name + "! Organize your day, one task at a time.";
+
+    loadTasks();
+    showPage("todo");
+    renderTasks();
+    updateDashboard();
+
+    // Ask permission only if reminders may be needed.
+    if (tasks.some((task) => task.reminder && !task.completed)) {
+        requestNotificationPermission();
+    }
+
+    checkReminders();
 }
 
-function loadUserTasks() {
-    try {
-        const savedTasks = localStorage.getItem(getTaskStorageKey());
-        const parsedTasks = savedTasks ? JSON.parse(savedTasks) : [];
+// ==========================================
+// STEP 8: LOAD AND SAVE TASKS
+// ==========================================
 
-        tasks = Array.isArray(parsedTasks) ? parsedTasks : [];
-    } catch (error) {
-        console.error("Could not load tasks:", error);
+function normalizeTask(task) {
+    // Support older task objects that used "text".
+    const rawPriority = String(task.priority || "medium").toLowerCase();
+
+    return {
+        id: String(task.id || createId()),
+        title: String(task.title || task.text || "Untitled task"),
+        completed: Boolean(task.completed),
+        priority: ["high", "medium", "low"].includes(rawPriority)
+            ? rawPriority
+            : "medium",
+        dueDate: typeof task.dueDate === "string" ? task.dueDate : "",
+        dueTime: typeof task.dueTime === "string" ? task.dueTime : "",
+        reminder: typeof task.reminder === "string" ? task.reminder : ""
+    };
+}
+
+function loadTasks() {
+    const key = getTasksKey();
+    const savedTasks = readStorage(key, null);
+
+    if (Array.isArray(savedTasks)) {
+        tasks = savedTasks.map(normalizeTask);
+        return;
+    }
+
+    // One-time migration attempt for the old shared "tasks" array.
+    // If the old app used this key, preserve its tasks for the first login.
+    const legacyTasks = readStorage(LEGACY_TASKS_KEY, []);
+
+    if (Array.isArray(legacyTasks) && legacyTasks.length > 0) {
+        tasks = legacyTasks.map(normalizeTask);
+        saveTasks();
+    } else {
         tasks = [];
     }
 }
 
 function saveTasks() {
-    try {
-        localStorage.setItem(
-            getTaskStorageKey(),
-            JSON.stringify(tasks)
-        );
-    } catch (error) {
-        alert("Could not save tasks in this browser.");
+    if (!currentUser) {
+        return false;
     }
+
+    return writeStorage(getTasksKey(), tasks);
 }
 
-function openUserTasks() {
-    loadUserTasks();
+// ==========================================
+// STEP 9: ADD OR UPDATE A TASK
+// ==========================================
 
-    currentFilter = "all";
-    welcomeMessage.textContent =
-        "Welcome, " + currentUser.name + "! Organize your day.";
-
-    showPage("todo");
-    renderTasks();
-}
-
-
-/* ==========================================
-   STEP 8: LOG OUT
-========================================== */
-
-logoutButton.addEventListener("click", function () {
-    sessionStorage.removeItem(SESSION_KEY);
-
-    currentUser = null;
-    tasks = [];
-
-    loginForm.reset();
-    loginMessage.textContent = "";
-
-    showPage("login");
-});
-
-
-/* ==========================================
-   STEP 9: ADD A TASK
-========================================== */
-
-taskForm.addEventListener("submit", function (event) {
+taskForm.addEventListener("submit", (event) => {
     event.preventDefault();
 
-    if (!currentUser) {
+    const title = taskInput.value.trim();
+
+    if (!title) {
+        showMessage(taskMessage, "Please enter a task name.", "error");
         return;
     }
 
-    const text = taskInput.value.trim();
+    const dueDate = taskDueDate.value;
+    const dueTime = taskDueTime.value;
+    const reminder = taskReminder.value;
 
-    if (text === "") {
+    // A reminder must have a deadline.
+    if (reminder && !dueDate) {
+        showMessage(
+            taskMessage,
+            "Please select a due date before setting a reminder.",
+            "error"
+        );
         return;
     }
 
-    tasks.push({
-        id: Date.now().toString() +
-            Math.random().toString(16).slice(2),
-        text: text,
-        completed: false
-    });
+    // Do not allow a reminder after the task deadline.
+    if (reminder && dueDate) {
+        const deadlineString = dueDate + "T" + (dueTime || "23:59");
+        const deadline = new Date(deadlineString);
+        const reminderDate = new Date(reminder);
 
-    saveTasks();
+        if (
+            Number.isNaN(deadline.getTime()) ||
+            Number.isNaN(reminderDate.getTime()) ||
+            reminderDate.getTime() > deadline.getTime()
+        ) {
+            showMessage(
+                taskMessage,
+                "The reminder must be before the task deadline.",
+                "error"
+            );
+            return;
+        }
+    }
+
+    const taskData = {
+        title: title,
+        priority: taskPriority.value,
+        dueDate: dueDate,
+        dueTime: dueTime,
+        reminder: reminder
+    };
+
+    if (editingTaskId) {
+        const index = tasks.findIndex((task) => task.id === editingTaskId);
+
+        if (index === -1) {
+            resetTaskForm();
+            return;
+        }
+
+        tasks[index] = {
+            ...tasks[index],
+            ...taskData
+        };
+
+        notifiedReminders.delete(editingTaskId);
+
+        showMessage(taskMessage, "Task updated successfully.", "success");
+    } else {
+        tasks.push({
+            id: createId(),
+            ...taskData,
+            completed: false
+        });
+
+        showMessage(taskMessage, "Task added successfully.", "success");
+    }
+
+    if (!saveTasks()) {
+        return;
+    }
+
+    resetTaskForm();
     renderTasks();
-
-    taskInput.value = "";
-    taskInput.focus();
+    updateDashboard();
+    requestNotificationPermission();
+    checkReminders();
 });
 
+// ==========================================
+// STEP 10: RESET THE TASK FORM
+// ==========================================
 
-/* ==========================================
-   STEP 10: DISPLAY TASKS
-========================================== */
+function resetTaskForm() {
+    taskForm.reset();
+    taskPriority.value = "medium";
+    editingTaskId = null;
+
+    document.getElementById("form-heading").textContent = "Add a New Task";
+    addTaskButton.textContent = "+ Add Task";
+    cancelEditButton.hidden = true;
+}
+
+cancelEditButton.addEventListener("click", () => {
+    resetTaskForm();
+    showMessage(taskMessage, "");
+});
+
+// ==========================================
+// STEP 11: FORMAT DATES
+// ==========================================
+
+function formatDueDate(task) {
+    if (!task.dueDate) {
+        return "";
+    }
+
+    // Add midday to avoid date-only timezone shifts.
+    const date = new Date(task.dueDate + "T12:00:00");
+
+    if (Number.isNaN(date.getTime())) {
+        return "";
+    }
+
+    let formatted = date.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric"
+    });
+
+    if (task.dueTime) {
+        const time = new Date("2000-01-01T" + task.dueTime);
+
+        if (!Number.isNaN(time.getTime())) {
+            formatted += " at " + time.toLocaleTimeString(undefined, {
+                hour: "numeric",
+                minute: "2-digit"
+            });
+        }
+    }
+
+    return formatted;
+}
+
+function getDeadline(task) {
+    if (!task.dueDate) {
+        return null;
+    }
+
+    const time = task.dueTime || "23:59";
+    const deadline = new Date(task.dueDate + "T" + time);
+
+    return Number.isNaN(deadline.getTime()) ? null : deadline;
+}
+
+function getTaskStatus(task) {
+    if (task.completed) {
+        return "completed";
+    }
+
+    const deadline = getDeadline(task);
+
+    if (!deadline) {
+        return "active";
+    }
+
+    const now = new Date();
+
+    if (deadline.getTime() < now.getTime()) {
+        return "overdue";
+    }
+
+    const oneDay = 24 * 60 * 60 * 1000;
+
+    if (deadline.getTime() - now.getTime() <= oneDay) {
+        return "due-soon";
+    }
+
+    return "active";
+}
+
+// ==========================================
+// STEP 12: DISPLAY TASKS
+// ==========================================
 
 function renderTasks() {
     taskList.replaceChildren();
 
-    let visibleTasks = tasks;
-
-    if (currentFilter === "active") {
-        visibleTasks = tasks.filter(function (task) {
+    const filteredTasks = tasks.filter((task) => {
+        if (currentFilter === "active") {
             return !task.completed;
-        });
-    } else if (currentFilter === "completed") {
-        visibleTasks = tasks.filter(function (task) {
-            return task.completed;
-        });
-    }
-
-    visibleTasks.forEach(function (task) {
-        const item = document.createElement("li");
-        item.className = "task-item";
-
-        if (task.completed) {
-            item.classList.add("completed");
         }
 
+        if (currentFilter === "completed") {
+            return task.completed;
+        }
+
+        return true;
+    });
+
+    // Sort by priority, then by deadline.
+    const priorityOrder = { high: 1, medium: 2, low: 3 };
+
+    filteredTasks.sort((a, b) => {
+        if (a.completed !== b.completed) {
+            return Number(a.completed) - Number(b.completed);
+        }
+
+        const priorityDifference =
+            priorityOrder[a.priority] - priorityOrder[b.priority];
+
+        if (priorityDifference !== 0) {
+            return priorityDifference;
+        }
+
+        const deadlineA = getDeadline(a);
+        const deadlineB = getDeadline(b);
+
+        if (!deadlineA && !deadlineB) return 0;
+        if (!deadlineA) return 1;
+        if (!deadlineB) return -1;
+
+        return deadlineA - deadlineB;
+    });
+
+    filteredTasks.forEach((task) => {
+        const item = document.createElement("li");
+
+        item.className = "task-item priority-" + task.priority;
+
+        if (task.completed) {
+            item.classList.add("completed-task");
+        }
+
+        // Completion checkbox.
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
+        checkbox.className = "task-checkbox";
         checkbox.checked = task.completed;
-        checkbox.setAttribute("aria-label", "Mark task completed");
+        checkbox.setAttribute("aria-label", "Complete " + task.title);
 
-        checkbox.addEventListener("change", function () {
-            task.completed = checkbox.checked;
-            saveTasks();
-            renderTasks();
+        checkbox.addEventListener("change", () => {
+            toggleTask(task.id);
         });
 
-        const text = document.createElement("span");
-        text.className = "task-text";
-        text.textContent = task.text;
+        // Task title and details.
+        const content = document.createElement("div");
+        content.className = "task-content";
+
+        const title = document.createElement("p");
+        title.className = "task-title";
+        title.textContent = task.title;
+
+        const metadata = document.createElement("div");
+        metadata.className = "task-meta";
+
+        const priorityBadge = document.createElement("span");
+        priorityBadge.className = "priority-badge " + task.priority;
+        priorityBadge.textContent =
+            task.priority.charAt(0).toUpperCase() +
+            task.priority.slice(1) + " Priority";
+
+        metadata.appendChild(priorityBadge);
+
+        if (task.dueDate) {
+            const dateLabel = document.createElement("span");
+            dateLabel.textContent = "📅 Due: " + formatDueDate(task);
+            metadata.appendChild(dateLabel);
+
+            const status = getTaskStatus(task);
+
+            if (status === "overdue") {
+                const badge = document.createElement("span");
+                badge.className = "status-badge overdue";
+                badge.textContent = "Overdue";
+                metadata.appendChild(badge);
+            } else if (status === "due-soon") {
+                const badge = document.createElement("span");
+                badge.className = "status-badge due-soon";
+                badge.textContent = "Due within 24 hours";
+                metadata.appendChild(badge);
+            }
+        }
+
+        if (task.reminder) {
+            const reminderLabel = document.createElement("span");
+            const reminderDate = new Date(task.reminder);
+
+            reminderLabel.textContent =
+                "🔔 Reminder: " +
+                (Number.isNaN(reminderDate.getTime())
+                    ? task.reminder
+                    : reminderDate.toLocaleString());
+
+            metadata.appendChild(reminderLabel);
+        }
+
+        content.append(title, metadata);
+
+        // Edit and delete actions.
+        const actions = document.createElement("div");
+        actions.className = "task-actions";
+
+        const editButton = document.createElement("button");
+        editButton.type = "button";
+        editButton.className = "task-action";
+        editButton.textContent = "Edit";
+        editButton.setAttribute("aria-label", "Edit " + task.title);
+        editButton.addEventListener("click", () => {
+            editTask(task.id);
+        });
 
         const deleteButton = document.createElement("button");
         deleteButton.type = "button";
-        deleteButton.className = "delete-button";
+        deleteButton.className = "task-action delete-action";
         deleteButton.textContent = "Delete";
-
-        deleteButton.addEventListener("click", function () {
-            tasks = tasks.filter(function (savedTask) {
-                return savedTask.id !== task.id;
-            });
-
-            saveTasks();
-            renderTasks();
+        deleteButton.setAttribute("aria-label", "Delete " + task.title);
+        deleteButton.addEventListener("click", () => {
+            deleteTask(task.id);
         });
 
-        item.append(checkbox, text, deleteButton);
+        actions.append(editButton, deleteButton);
+        item.append(checkbox, content, actions);
         taskList.appendChild(item);
     });
 
-    updateTaskCount();
-    updateFilterButtons();
+    emptyMessage.hidden = filteredTasks.length > 0;
+
+    if (filteredTasks.length === 0) {
+        emptyMessage.textContent =
+            currentFilter === "completed"
+                ? "No completed tasks yet."
+                : currentFilter === "active"
+                    ? "You have no pending tasks."
+                    : "No tasks yet. Add your first task above!";
+    }
+
+    const pendingCount = tasks.filter((task) => !task.completed).length;
+
+    taskCount.textContent =
+        pendingCount + (pendingCount === 1 ? " task remaining" : " tasks remaining");
+
+    // Keep the Clear Completed button useful.
+    document.getElementById("clear-completed").disabled =
+        !tasks.some((task) => task.completed);
 }
 
+// ==========================================
+// STEP 13: COMPLETE OR UNCOMPLETE A TASK
+// ==========================================
 
-/* ==========================================
-   STEP 11: COUNT REMAINING TASKS
-========================================== */
+function toggleTask(id) {
+    const task = tasks.find((item) => item.id === id);
 
-function updateTaskCount() {
-    const remaining = tasks.filter(function (task) {
-        return !task.completed;
-    }).length;
+    if (!task) {
+        return;
+    }
 
-    taskCount.textContent = remaining +
-        (remaining === 1 ? " task remaining" : " tasks remaining");
+    task.completed = !task.completed;
+
+    if (task.completed) {
+        notifiedReminders.delete(task.id);
+    }
+
+    if (!saveTasks()) {
+        task.completed = !task.completed;
+        return;
+    }
+
+    renderTasks();
+    updateDashboard();
 }
 
+// ==========================================
+// STEP 14: EDIT A TASK
+// ==========================================
 
-/* ==========================================
-   STEP 12: FILTER TASKS
-========================================== */
+function editTask(id) {
+    const task = tasks.find((item) => item.id === id);
+
+    if (!task) {
+        return;
+    }
+
+    editingTaskId = task.id;
+
+    taskInput.value = task.title;
+    taskPriority.value = task.priority;
+    taskDueDate.value = task.dueDate;
+    taskDueTime.value = task.dueTime;
+    taskReminder.value = task.reminder;
+
+    document.getElementById("form-heading").textContent = "Edit Task";
+    addTaskButton.textContent = "Save Changes";
+    cancelEditButton.hidden = false;
+
+    showMessage(taskMessage, "");
+    taskInput.focus();
+
+    document.getElementById("task-form").scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+    });
+}
+
+// ==========================================
+// STEP 15: DELETE A TASK
+// ==========================================
+
+function deleteTask(id) {
+    const task = tasks.find((item) => item.id === id);
+
+    if (!task) {
+        return;
+    }
+
+    if (!confirm('Delete the task "' + task.title + '"?')) {
+        return;
+    }
+
+    const previousTasks = tasks;
+    tasks = tasks.filter((item) => item.id !== id);
+    notifiedReminders.delete(id);
+
+    if (!saveTasks()) {
+        tasks = previousTasks;
+        return;
+    }
+
+    if (editingTaskId === id) {
+        resetTaskForm();
+    }
+
+    renderTasks();
+    updateDashboard();
+}
+
+// ==========================================
+// STEP 16: FILTER TASKS
+// ==========================================
 
 function setFilter(filter) {
     currentFilter = filter;
+
+    const buttons = [
+        [allFilter, "all"],
+        [activeFilter, "active"],
+        [completedFilter, "completed"]
+    ];
+
+    buttons.forEach(([button, buttonFilter]) => {
+        const isActive = buttonFilter === filter;
+
+        button.classList.toggle("active-filter", isActive);
+        button.setAttribute("aria-pressed", String(isActive));
+    });
+
     renderTasks();
 }
 
-allFilter.addEventListener("click", function () {
-    setFilter("all");
+allFilter.addEventListener("click", () => setFilter("all"));
+activeFilter.addEventListener("click", () => setFilter("active"));
+completedFilter.addEventListener("click", () => setFilter("completed"));
+
+// ==========================================
+// STEP 17: CLEAR COMPLETED TASKS
+// ==========================================
+
+document.getElementById("clear-completed").addEventListener("click", () => {
+    const completedTasks = tasks.filter((task) => task.completed);
+
+    if (completedTasks.length === 0) {
+        return;
+    }
+
+    if (!confirm("Delete all " + completedTasks.length + " completed tasks?")) {
+        return;
+    }
+
+    const previousTasks = tasks;
+
+    tasks = tasks.filter((task) => !task.completed);
+
+    completedTasks.forEach((task) => {
+        notifiedReminders.delete(task.id);
+    });
+
+    if (!saveTasks()) {
+        tasks = previousTasks;
+        return;
+    }
+
+    resetTaskForm();
+    renderTasks();
+    updateDashboard();
 });
 
-activeFilter.addEventListener("click", function () {
-    setFilter("active");
-});
+// ==========================================
+// STEP 18: UPDATE DASHBOARD STATISTICS
+// ==========================================
 
-completedFilter.addEventListener("click", function () {
-    setFilter("completed");
-});
+function updateDashboard() {
+    const total = tasks.length;
+    const completed = tasks.filter((task) => task.completed).length;
+    const pending = total - completed;
 
-function updateFilterButtons() {
-    [
-        { button: allFilter, name: "all" },
-        { button: activeFilter, name: "active" },
-        { button: completedFilter, name: "completed" }
-    ].forEach(function (filter) {
-        const selected = currentFilter === filter.name;
+    const percentage = total === 0
+        ? 0
+        : Math.round((completed / total) * 100);
 
-        filter.button.classList.toggle("active-filter", selected);
-        filter.button.setAttribute("aria-pressed", String(selected));
+    totalTasksElement.textContent = total;
+    completedTasksElement.textContent = completed;
+    pendingTasksElement.textContent = pending;
+    progressPercentageElement.textContent = percentage + "%";
+
+    progressFill.style.width = percentage + "%";
+    progressLabel.textContent = percentage + "% completed";
+
+    progressBar.setAttribute("aria-valuenow", percentage);
+
+    drawCompletionChart();
+    drawPriorityChart();
+}
+
+// ==========================================
+// STEP 19: DRAW A BAR CHART
+// ==========================================
+
+// Draw charts using the HTML canvas API.
+// This avoids needing an external chart library.
+
+function drawBarChart(canvas, chartData, maxValue) {
+    const context = canvas.getContext("2d");
+
+    if (!context) {
+        return;
+    }
+
+    const rectangle = canvas.getBoundingClientRect();
+
+    if (rectangle.width === 0 || rectangle.height === 0) {
+        return;
+    }
+
+    const pixelRatio = window.devicePixelRatio || 1;
+
+    canvas.width = Math.round(rectangle.width * pixelRatio);
+    canvas.height = Math.round(rectangle.height * pixelRatio);
+
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    context.clearRect(0, 0, rectangle.width, rectangle.height);
+
+    const width = rectangle.width;
+    const height = rectangle.height;
+
+    const padding = {
+        left: 36,
+        right: 14,
+        top: 24,
+        bottom: 48
+    };
+
+    const graphWidth = width - padding.left - padding.right;
+    const graphHeight = height - padding.top - padding.bottom;
+
+    if (graphWidth <= 0 || graphHeight <= 0) {
+        return;
+    }
+
+    const safeMax = Math.max(1, maxValue);
+    const gridLines = 4;
+
+    context.font = "12px Arial";
+    context.textBaseline = "middle";
+
+    // Horizontal grid lines and number labels.
+    for (let i = 0; i <= gridLines; i++) {
+        const value = safeMax * (gridLines - i) / gridLines;
+        const y = padding.top + graphHeight * i / gridLines;
+
+        context.beginPath();
+        context.strokeStyle = "#e6ece8";
+        context.lineWidth = 1;
+        context.moveTo(padding.left, y);
+        context.lineTo(width - padding.right, y);
+        context.stroke();
+
+        context.fillStyle = "#6b786f";
+        context.textAlign = "right";
+        context.fillText(
+            String(Math.round(value)),
+            padding.left - 8,
+            y
+        );
+    }
+
+    const slotWidth = graphWidth / chartData.length;
+    const barWidth = Math.min(55, slotWidth * 0.55);
+
+    chartData.forEach((item, index) => {
+        const barHeight = graphHeight * item.value / safeMax;
+        const x = padding.left + slotWidth * index +
+            (slotWidth - barWidth) / 2;
+
+        const y = padding.top + graphHeight - barHeight;
+
+        context.fillStyle = item.color;
+
+        // Rounded top corners when supported.
+        if (typeof context.roundRect === "function") {
+            context.beginPath();
+            context.roundRect(x, y, barWidth, barHeight, 5);
+            context.fill();
+        } else {
+            context.fillRect(x, y, barWidth, barHeight);
+        }
+
+        context.fillStyle = "#17251c";
+        context.textAlign = "center";
+        context.textBaseline = "bottom";
+        context.fillText(String(item.value), x + barWidth / 2, y - 5);
+
+        context.fillStyle = "#536258";
+        context.textBaseline = "top";
+        context.fillText(
+            item.label,
+            padding.left + slotWidth * index + slotWidth / 2,
+            padding.top + graphHeight + 12
+        );
     });
 }
 
+// ==========================================
+// STEP 20: COMPLETION GRAPH
+// ==========================================
 
-/* ==========================================
-   STEP 13: CLEAR COMPLETED TASKS
-========================================== */
+function drawCompletionChart() {
+    const completed = tasks.filter((task) => task.completed).length;
+    const pending = tasks.length - completed;
 
-clearCompletedButton.addEventListener("click", function () {
-    tasks = tasks.filter(function (task) {
-        return !task.completed;
-    });
+    drawBarChart(
+        completionChart,
+        [
+            { label: "Completed", value: completed, color: "#15803d" },
+            { label: "Pending", value: pending, color: "#d97706" }
+        ],
+        Math.max(completed, pending, 1)
+    );
 
-    saveTasks();
-    renderTasks();
+    completionChartSummary.textContent =
+        completed + " completed · " + pending + " pending";
+}
+
+// ==========================================
+// STEP 21: PRIORITY GRAPH
+// ==========================================
+
+function drawPriorityChart() {
+    const high = tasks.filter((task) => task.priority === "high").length;
+    const medium = tasks.filter((task) => task.priority === "medium").length;
+    const low = tasks.filter((task) => task.priority === "low").length;
+
+    drawBarChart(
+        priorityChart,
+        [
+            { label: "High", value: high, color: "#dc2626" },
+            { label: "Medium", value: medium, color: "#d97706" },
+            { label: "Low", value: low, color: "#15803d" }
+        ],
+        Math.max(high, medium, low, 1)
+    );
+
+    priorityChartSummary.textContent =
+        "High: " + high + " · Medium: " + medium + " · Low: " + low;
+}
+
+// Redraw graphs when the browser size changes.
+window.addEventListener("resize", () => {
+    if (currentUser) {
+        drawCompletionChart();
+        drawPriorityChart();
+    }
 });
 
+// ==========================================
+// STEP 22: BROWSER NOTIFICATION PERMISSION
+// ==========================================
 
-/* ==========================================
-   STEP 14: RESTORE THE CURRENT SESSION
-========================================== */
+async function requestNotificationPermission() {
+    if (!("Notification" in window)) {
+        showMessage(
+            taskMessage,
+            "Your browser does not support notifications.",
+            "error"
+        );
+        return false;
+    }
 
-function startApp() {
-    const userId = sessionStorage.getItem(SESSION_KEY);
+    if (Notification.permission === "granted") {
+        return true;
+    }
 
-    if (userId) {
-        const users = getUsers();
+    if (Notification.permission === "denied") {
+        showMessage(
+            taskMessage,
+            "Notifications are blocked. Enable them in your browser settings.",
+            "error"
+        );
+        return false;
+    }
 
-        currentUser = users.find(function (user) {
-            return user.id === userId;
-        }) || null;
+    // Call this following a user action, such as adding a reminder.
+    try {
+        const permission = await Notification.requestPermission();
+        return permission === "granted";
+    } catch (error) {
+        console.error("Notification permission request failed:", error);
+        return false;
+    }
+}
 
-        if (currentUser) {
-            openUserTasks();
+// ==========================================
+// STEP 23: CHECK TASK REMINDERS
+// ==========================================
+
+function checkReminders() {
+    if (!currentUser || !("Notification" in window)) {
+        return;
+    }
+
+    if (Notification.permission !== "granted") {
+        return;
+    }
+
+    const now = Date.now();
+
+    tasks.forEach((task) => {
+        if (!task.reminder || task.completed) {
             return;
         }
 
-        sessionStorage.removeItem(SESSION_KEY);
-    }
+        const reminderTime = new Date(task.reminder).getTime();
 
-    showPage("login");
+        if (Number.isNaN(reminderTime)) {
+            return;
+        }
+
+        // Notify once when the reminder time arrives or has passed.
+        if (
+            reminderTime <= now &&
+            !notifiedReminders.has(task.id)
+        ) {
+            try {
+                const notification = new Notification("Smart To-Do List", {
+                    body: "Reminder: " + task.title,
+                    tag: "task-reminder-" + task.id
+                });
+
+                notification.onclick = () => {
+                    window.focus();
+                    notification.close();
+                };
+
+                notifiedReminders.add(task.id);
+            } catch (error) {
+                console.error("Could not display reminder:", error);
+            }
+        }
+    });
 }
 
-startApp();
+// Check every 15 seconds while this page is open.
+setInterval(checkReminders, 15000);
+
+// Check again when returning to the app.
+document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+        checkReminders();
+        renderTasks();
+        updateDashboard();
+    }
+});
+
+// ==========================================
+// STEP 24: LOG OUT
+// ==========================================
+
+document.getElementById("logout-button").addEventListener("click", () => {
+    // Preserve saved tasks; clear only the current login session.
+    try {
+        localStorage.removeItem(SESSION_KEY);
+    } catch (error) {
+        console.error("Could not clear login session:", error);
+    }
+
+    currentUser = null;
+    tasks = [];
+    editingTaskId = null;
+    notifiedReminders.clear();
+
+    loginForm.reset();
+    resetTaskForm();
+
+    showMessage(document.getElementById("login-message"), "");
+    showPage("login");
+});
+
+// ==========================================
+// STEP 25: RESTORE SESSION AFTER REFRESH
+// ==========================================
+
+function restoreSession() {
+    const session = readStorage(SESSION_KEY, null);
+
+    if (!session || !session.email) {
+        showPage("login");
+        return;
+    }
+
+    const users = readStorage(USERS_KEY, []);
+
+    if (!Array.isArray(users)) {
+        showPage("login");
+        return;
+    }
+
+    const user = users.find((item) => item.email === session.email);
+
+    if (!user) {
+        showPage("login");
+        return;
+    }
+
+    startApp(user);
+}
+
+// ==========================================
+// STEP 26: START THE APPLICATION
+// ==========================================
+
+restoreSession();
